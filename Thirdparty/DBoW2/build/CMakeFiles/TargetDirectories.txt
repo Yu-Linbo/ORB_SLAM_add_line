@@ -1,3 +1,0 @@
-/home/ylb/Develop/ORB_SLAM2/Thirdparty/DBoW2/build/CMakeFiles/rebuild_cache.dir
-/home/ylb/Develop/ORB_SLAM2/Thirdparty/DBoW2/build/CMakeFiles/edit_cache.dir
-/home/ylb/Develop/ORB_SLAM2/Thirdparty/DBoW2/build/CMakeFiles/DBoW2.dir

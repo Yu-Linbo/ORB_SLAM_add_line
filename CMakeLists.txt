@@ -28,7 +28,7 @@ endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-find_package(OpenCV 3.0 QUIET)
+find_package(OpenCV 3 REQUIRED  PATHS /usr/local/cv34 )
 if(NOT OpenCV_FOUND)
    find_package(OpenCV 2.4.3 QUIET)
    if(NOT OpenCV_FOUND)
@@ -44,6 +44,7 @@ ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
 ${EIGEN3_INCLUDE_DIR}
 ${Pangolin_INCLUDE_DIRS}
+${OpenCV_INCLUDE_DIRS}
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
@@ -71,7 +72,7 @@ src/KeyFrameDatabase.cc
 src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
-)
+        src/LKOdometer.cpp include/LKOdometer.h experiment/test.cpp)
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
@@ -114,3 +115,8 @@ add_executable(mono_euroc
 Examples/Monocular/mono_euroc.cc)
 target_link_libraries(mono_euroc ${PROJECT_NAME})
 
+add_executable(test experiment/test.cpp)
+target_link_libraries(test ${PROJECT_NAME})
+
+#add_executable(line_test experiment/line_test.cpp)
+#target_link_libraries(line_test ${PROJECT_NAME})

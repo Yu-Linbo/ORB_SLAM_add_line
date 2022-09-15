@@ -6,14 +6,13 @@
 
 #include <iostream>
 
-#include <cv.h>
+#include <opencv2/opencv.hpp>
 #include <opencv2/features2d/features2d.hpp>
 //#include <line_descriptor_custom.hpp>
 //#include <line_descriptor/descriptor_custom.hpp>
 #include <opencv2/line_descriptor/descriptor.hpp>
 using namespace cv;
-using namespace cv::line_descriptor;
-//using namespace line_descriptor;
+using namespace line_descriptor;
 
 #include <vector>
 using namespace std;

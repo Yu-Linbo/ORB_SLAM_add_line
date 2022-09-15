@@ -23,7 +23,7 @@
 
 #include <vector>
 #include <list>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 
 namespace ORB_SLAM2
@@ -59,6 +59,10 @@ public:
     void operator()( cv::InputArray image, cv::InputArray mask,
       std::vector<cv::KeyPoint>& keypoints,
       cv::OutputArray descriptors);
+
+    // only detect
+    void operator()( cv::InputArray image, cv::InputArray mask,
+                     std::vector<cv::KeyPoint>& keypoints);
 
     int inline GetLevels(){
         return nlevels;}

@@ -65,7 +65,7 @@ public:
     void ExtractORB(int flag, const cv::Mat &im);
 
     // LSD点特征提取，添加
-    void ExtractLSD(const cv::Mat &im);
+    void ExtractLSD(const cv::Mat &im, const cv::Mat &depth);
 
     // 自己添加的，线特征描述子MAD
     void lineDescriptorMAD( vector<vector<DMatch>> matches, double &nn_mad, double &nn12_mad) const;
@@ -115,6 +115,14 @@ public:
 
     // 反投影地图线的端点
     Vector6d UnprojectLine(const int &i);
+
+    // 反投影相机坐标系线的端点
+    Vector6d UnprojectLine_camera(const int &i);
+
+    // 线特征筛选
+    void Select_lines();
+    // 获取线端点深度
+    void ComputeStereoFromRGBD_line(const Mat &imDepth);
 
 public:
     // Vocabulary used for relocalization.
@@ -182,11 +190,14 @@ public:
     vector<KeyLine> mvKeylinesUn;
     Mat mLdesc;
     vector<Vector3d> mvKeyLineFunctions;    //特征线段所在直线的系数
+    // 线端点深度，筛选前
+    std::vector<float> mvDepth_line_start_origin;
+    std::vector<float> mvDepth_line_end_origin;
     // 线端点深度
     std::vector<float> mvDepth_line_start;
     std::vector<float> mvDepth_line_end;
     // 特征线段是否属于外点，添加
-    vector<bool> mvbLineOutlier;
+    std::vector<bool> mvbLineOutlier;
     std::vector<MapLine*> mvpMapLines;  //mvpMapLines与keylines相关联
 
     // Keypoints are assigned to cells in a grid to reduce matching complexity when projecting MapPoints.
@@ -220,7 +231,6 @@ public:
     static float mnMaxY;
 
     static bool mbInitialComputations;
-
 
 private:
 

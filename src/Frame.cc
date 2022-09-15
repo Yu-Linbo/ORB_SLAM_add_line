@@ -26,9 +26,11 @@
 // 在keyFrame用到，添加
 #include "assistor.h"
 
+using namespace std;
+
 namespace ORB_SLAM2
 {
-
+// 帧序号
 long unsigned int Frame::nNextId=0;
 bool Frame::mbInitialComputations=true;
 float Frame::cx, Frame::cy, Frame::fx, Frame::fy, Frame::invfx, Frame::invfy;
@@ -127,7 +129,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     // Frame ID
     mnId=nNextId++;
 
-    // Scale Level Info
+    // Scale Level Info, 特征提取相关参数
     mnScaleLevels = mpORBextractorLeft->GetLevels();
     mfScaleFactor = mpORBextractorLeft->GetScaleFactor();    
     mfLogScaleFactor = log(mfScaleFactor);
@@ -140,14 +142,15 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     // ORB extraction
     // ExtractORB(0,imGray);
     thread threadPoint(&Frame::ExtractORB, this, 0, imGray);
-    thread threadLine(&Frame::ExtractLSD, this, imGray);
+    thread threadLine(&Frame::ExtractLSD, this, imGray,imDepth);
     threadPoint.join();
     threadLine.join();
 
-    NL = mvKeylinesUn.size(); //特征线的数量
+    NL = mvKeylinesUn.size(); //线特征的数量
 //    cout << "NL: " << NL << endl;
-    N = mvKeys.size();
+    N = mvKeys.size();      // 点特征的数量
 
+    // 仅对点特征进行判断
     if(mvKeys.empty())
         return;
 
@@ -156,6 +159,8 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     // 此时
     mvKeysUn = mvKeys;
 
+    ComputeStereoFromRGBD_line(imDepth);
+    Select_lines(); // 筛选线特征
     ComputeStereoFromRGBD(imDepth);
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
@@ -270,8 +275,8 @@ void Frame::ExtractORB(int flag, const cv::Mat &im)
         (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight);
 }
 
-// 线特征提取，添加
-void Frame::ExtractLSD(const cv::Mat &im)
+// 线特征提取，获取深度信息用与线提取，添加
+void Frame::ExtractLSD(const cv::Mat &im, const cv::Mat &depth)
 {
     mpLineSegment->ExtractLineSegment(im, mvKeylinesUn, mLdesc, mvKeyLineFunctions);
 }
@@ -820,8 +825,8 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
     mvuRight = vector<float>(N,-1);
     mvDepth = vector<float>(N,-1);
     // 线端点深度，添加
-    mvDepth_line_start = vector<float>(NL,-1);;
-    mvDepth_line_end = vector<float>(NL,-1);;
+    mvDepth_line_start = vector<float>(NL,-1);
+    mvDepth_line_end = vector<float>(NL,-1);
 
     for(int i=0; i<N; i++)
     {
@@ -878,7 +883,7 @@ cv::Mat Frame::UnprojectStereo(const int &i)
         return cv::Mat();
 }
 
-/// 线反投影为三维线，添加
+/// 线反投影为三维线，相机坐标系到世界坐标系，添加
 Vector6d Frame::UnprojectLine(const int &i)
 {
     const float z_start = mvDepth_line_start[i];
@@ -905,5 +910,95 @@ Vector6d Frame::UnprojectLine(const int &i)
     }
     return x3Dc_Line_point;
 }
+
+/// 线反投影为三维线，相机坐标系到相机坐标系，添加
+    Vector6d Frame::UnprojectLine_camera(const int &i)
+    {
+        const float z_start = mvDepth_line_start_origin[i];
+        const float z_end = mvDepth_line_end_origin[i];
+        Vector6d x3Dc_Line_point ;
+        if(z_start>0 && z_end>0)
+        {
+            const float v_start = mvKeylinesUn[i].startPointY;
+            const float u_start = mvKeylinesUn[i].startPointX;
+            const float x_start = (u_start-cx)*z_start*invfx;
+            const float y_start = (v_start-cy)*z_start*invfy;
+            cv::Mat x3Dc_start = (cv::Mat_<float>(3,1) << x_start, y_start, z_start);
+
+            const float v_end = mvKeylinesUn[i].endPointY;
+            const float u_end = mvKeylinesUn[i].endPointX;
+            const float x_end = (u_end-cx)*z_end*invfx;
+            const float y_end = (v_end-cy)*z_end*invfy;
+            cv::Mat x3Dc_end = (cv::Mat_<float>(3,1) << x_end, y_end, z_end);
+
+            x3Dc_Line_point << x3Dc_start.at<float>(0,0), x3Dc_start.at<float>(1,0), x3Dc_start.at<float>(2,0),
+                    x3Dc_end.at<float>(0,0), x3Dc_end.at<float>(1,0), x3Dc_end.at<float>(2,0);
+        }
+        return x3Dc_Line_point;
+    }
+    void Frame::ComputeStereoFromRGBD_line(const cv::Mat &imDepth)
+    {
+        // 线端点深度，添加
+        mvDepth_line_start_origin = vector<float>(NL,-1);
+        mvDepth_line_end_origin = vector<float>(NL,-1);
+        //  线端点深度，添加
+        for(int i=0; i<NL; i++)
+        {
+            const KeyLine &kl = mvKeylinesUn[i];
+
+            const float &v_start = kl.startPointY;
+            const float &u_start = kl.startPointX;
+
+            const float &v_end = kl.endPointY;
+            const float &u_end = kl.endPointX;
+
+            float d_start = imDepth.at<float>(v_start,u_start);
+            float d_end = imDepth.at<float>(v_end , u_end);
+
+            if(d_start > 0 && d_end > 0)
+            {
+                mvDepth_line_start_origin[i] = d_start;
+                mvDepth_line_end_origin[i] = d_end;
+            }
+        }
+    }
+
+// 筛选长度 dl > 0.25 *immage.weith，斜率 dd/dl< 1 的线,其余设为外线
+    void Frame::Select_lines()
+    {
+        vector<KeyLine> Selected_keylines;
+        //  筛选
+        for(int i=0; i<mvKeylinesUn.size(); i++)
+        {
+            Vector6d line_n=UnprojectLine_camera(i);
+            float v_start,u_start,d_start,v_end,u_end,d_end;
+            v_start = line_n[0];
+            u_start = line_n[1];
+            d_start = line_n[2];
+            v_end = line_n[3];
+            u_end = line_n[4];
+            d_end = line_n[5];
+
+            if(d_start < 0 || d_end < 0 )
+                continue;
+
+            double dl_2d,dl,dd;
+            dl_2d =sqrt(pow(mvKeylinesUn[i].startPointX - mvKeylinesUn[i].endPointX,2) + pow(mvKeylinesUn[i].startPointY - mvKeylinesUn[i].endPointY,2));
+            dl = sqrt(pow(v_start - v_end,2) + pow(u_start - u_end,2));
+            dd = fabs(d_start - d_end)/dl;
+            cout << "v_start " <<  v_start << " v_end " << v_end << " u_start " << u_start << " u_end " << u_end << endl;
+            cout << "dl_2d " << dl_2d << "; fabs(d_start - d_end) = "<< fabs(d_start - d_end)  <<  dl << "; dl = " <<  dl << "; dd = " << dd << endl;
+            if(dl_2d > 50 && fabs(d_start - d_end) < 1)
+            {
+                Selected_keylines.push_back(mvKeylinesUn[i]);
+                cout << i << "  " << dd << endl;
+            }
+            for(unsigned int i=0; i<Selected_keylines.size(); i++)
+                Selected_keylines[i].class_id = i;
+        }
+        mvKeylinesUn.swap(Selected_keylines);
+        NL = mvKeylinesUn.size();
+        cout<< "new NL = " << NL << endl;
+    }
 
 } //namespace ORB_SLAM

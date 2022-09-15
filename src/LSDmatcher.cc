@@ -50,19 +50,23 @@ namespace ORB_SLAM2
         return nmatches;
     }
 
+    // 帧到帧
     int LSDmatcher::SearchByProjection(KeyFrame* pKF,Frame &F, vector<MapLine*> &vpMapLineMatches)
     {
-        // 匹配特征线的数量，最终要返回该值
+        const vector<MapLine*> vpMapLinesKF = pKF->GetMapLineMatches();
+        vpMapLineMatches = vector<MapLine*>(F.NL,static_cast<MapLine*>(NULL)); // 初始化NL个为NULL的MapLine
+
         int nmatches = 0;
         vector<vector<DMatch>> lmatches;
         // 当前帧与上一帧 描述子
         Mat ldesc1, ldesc2;
-        ldesc1 = pKF->mDescriptors;
+        ldesc1 = pKF->mLineDescriptors;
         ldesc2 = F.mLdesc;
 
         // 匹配
         BFMatcher* bfm = new BFMatcher(NORM_HAMMING, false);
         bfm->knnMatch(ldesc1, ldesc2, lmatches, 2);
+        // cout << " test: lmatches is " << ldesc1.size() << " " << ldesc2.size() << " " << lmatches.size() << endl;
         if(lmatches.size() == 0){
             return nmatches;
         }
@@ -78,12 +82,19 @@ namespace ORB_SLAM2
             double dist_12 = lmatches[i][1].distance - lmatches[i][0].distance;
             if(dist_12>nn12_dist_th)
             {
-                nmatches++;
+                MapLine* mapLine = vpMapLinesKF[qdx];
+                if(mapLine)
+                {
+                    // 匹配地图线
+                    vpMapLineMatches[tdx]=mapLine;
+                    nmatches++;
+                }
             }
         }
         return nmatches;
     }
 
+    // 帧到地图线
     int LSDmatcher::SearchByProjection(Frame &F, const std::vector<MapLine *> &vpMapLines, const float th)
     {
         int nmatches = 0;
@@ -169,6 +180,7 @@ namespace ORB_SLAM2
         return nmatches;
     }
 
+    // 未用到
     int LSDmatcher::SerachForInitialize(Frame &InitialFrame, Frame &CurrentFrame, vector<pair<int, int>> &LineMatches)
     {
         LineMatches.clear();

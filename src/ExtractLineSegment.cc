@@ -4,13 +4,13 @@
 
 //#include <Thirdparty/line_descriptor/include/line_descriptor_custom.hpp>
 #include "ExtractLineSegment.h"
-#include <opencv2/line_descriptor/descriptor.hpp>
+/// #include <opencv2/line_descriptor/descriptor.hpp>
 
 namespace ORB_SLAM2
 {
 LineSegment::LineSegment() {}
 
-void LineSegment::ExtractLineSegment(const Mat &img, vector<KeyLine> &keylines, Mat &ldesc, vector<Vector3d> &keylineFunctions, int scale, int numOctaves)
+void LineSegment::ExtractLineSegment(const Mat &img, vector<KeyLine> &keylines, Mat &ldesc, vector<Vector3d> &keylineFunctions,float scale, int numOctaves)
 {
 #if 0
     // detect line features
@@ -34,17 +34,19 @@ void LineSegment::ExtractLineSegment(const Mat &img, vector<KeyLine> &keylines, 
     Ptr<line_descriptor::LSDDetector> lsd = line_descriptor::LSDDetector::createLSDDetector();
     lsd->detect(img, keylines, scale, numOctaves);
 
-    unsigned int lsdNFeatures = 40;
+    int lsdNFeatures = 40;
 
     // filter lines
     // 保留响应大的40个线
     if(keylines.size()>lsdNFeatures)
     {
+        // 保留响应大的40个线
         sort(keylines.begin(), keylines.end(), sort_lines_by_response());
         keylines.resize(lsdNFeatures);
-        for(unsigned int i=0; i<lsdNFeatures; i++)
+        for(unsigned int i=0; i<keylines.size(); i++)
             keylines[i].class_id = i;
     }
+    cout<< "keylines size : " << keylines.size() <<endl;
 
     lbd->compute(img, keylines, ldesc);     //计算特征线段的描述子
 

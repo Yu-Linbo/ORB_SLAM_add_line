@@ -1,0 +1,5 @@
+build
+cmake-build-debug
+.idea
+lib/libORB_SLAM2.so
+Vocabulary/*

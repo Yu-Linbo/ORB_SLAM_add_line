@@ -9,14 +9,12 @@
 #include "Frame.h"
 #include "Map.h"
 
-//#include "line_descriptor/descriptor_custom.hpp"
 #include <opencv2/line_descriptor/descriptor.hpp>
 #include <opencv2/core/core.hpp>
 #include <mutex>
 #include <eigen3/Eigen/Core>
 #include <map>
 
-//using namespace line_descriptor;
 using namespace cv::line_descriptor;
 using namespace Eigen;
 using namespace cv;

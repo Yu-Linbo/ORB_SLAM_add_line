@@ -85,8 +85,8 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
 
     // 得到映射值，添加
     initUndistortRectifyMap(mK, mDistCoef, Mat_<double>::eye(3,3), mK, Size(img_width, img_height), CV_32F, mUndistX, mUndistY);
-    cout << "mUndistX size = " << mUndistX.size << endl;
-    cout << "mUndistY size = " << mUndistY.size << endl;
+    cout << "mUndistX size = " << mUndistX.size() << endl;
+    cout << "mUndistY size = " << mUndistY.size()<< endl;
 
     mbf = fSettings["Camera.bf"];
 
@@ -547,6 +547,7 @@ void Tracking::StereoInitialization()
                 MapPoint* pNewMP = new MapPoint(x3D,pKFini,mpMap);
                 pNewMP->AddObservation(pKFini,i);
                 pKFini->AddMapPoint(pNewMP,i);
+                // 一个地图点会被多个帧观察到，相应会有多个描述子，计算最优的描述子(RGBD 初始化时，似乎没必要)
                 pNewMP->ComputeDistinctiveDescriptors();
                 pNewMP->UpdateNormalAndDepth();
                 mpMap->AddMapPoint(pNewMP);
@@ -559,10 +560,10 @@ void Tracking::StereoInitialization()
         for(int i=0; i<mCurrentFrame.NL;i++)
         {
             float z_start = mCurrentFrame.mvDepth_line_start[i];
-            // float z_end = mCurrentFrame.mvDepth_line_end[i];     // 仅判断一个就行
-            if(z_start>0 )
+            float z_end = mCurrentFrame.mvDepth_line_end[i];
+            if(z_start>0 && z_end>0)
             {
-                // 创建mapline
+                // 创建mapline，世界坐标系下
                 Vector6d worldPos = mCurrentFrame.UnprojectLine(i);
 //                worldPos << mCurrentFrame.mvKeylinesUn[i].startPointX,mCurrentFrame.mvKeylinesUn[i].startPointY,mCurrentFrame.mvDepth_line_start[i],
 //                            mCurrentFrame.mvKeylinesUn[i].endPointX,mCurrentFrame.mvKeylinesUn[i].endPointY,mCurrentFrame.mvDepth_line_end[i];
@@ -822,7 +823,7 @@ void Tracking::CheckReplacedInLastFrame()
     }
 }
 
-/// 修改pnp,加入线特征，待添加
+/// 修改Epnp,加入线特征，待添加 (几乎只有初始两帧用到了)
 bool Tracking::TrackReferenceKeyFrame()
 {
     // Compute Bag of Words vector
@@ -841,7 +842,7 @@ bool Tracking::TrackReferenceKeyFrame()
 
     cout <<  "TrackReferenceKeyFrame  Point match: " << nmatches <<  " Line match: " <<  lnmatches << endl;
 
-    if(nmatches<15)
+    if(nmatches<15 && lnmatches<4 )
         return false;
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
@@ -849,6 +850,7 @@ bool Tracking::TrackReferenceKeyFrame()
     mCurrentFrame.mvpMapLines = vpMapLineMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
 
+    // 当前帧位置优化，待修改
     Optimizer::PoseOptimization(&mCurrentFrame);
 
     // Discard outliers
@@ -871,6 +873,7 @@ bool Tracking::TrackReferenceKeyFrame()
                 nmatchesMap++;
         }
     }
+
     // Discard outliers
     int lnmatchesMap = 0;
     for(int i =0; i<mCurrentFrame.NL; i++)
@@ -962,7 +965,7 @@ void Tracking::UpdateLastFrame()
     }
 }
 
-/// 修改为光流法
+/// 可修改为IMU，待修改
 bool Tracking::TrackWithMotionModel()
 {
     ORBmatcher matcher(0.9,true);
@@ -1319,6 +1322,37 @@ void Tracking::CreateNewKeyFrame()
                     break;
             }
         }
+
+        // 创建地图线，添加
+        for(int i=0; i<mCurrentFrame.NL;i++)
+        {
+            float z_start = mCurrentFrame.mvDepth_line_start[i];
+            // float z_end = mCurrentFrame.mvDepth_line_end[i];     // 仅判断一个就行
+            if(z_start>0 )
+            {
+                // 创建mapline
+                Vector6d worldPos = mCurrentFrame.UnprojectLine(i);
+//                worldPos << mCurrentFrame.mvKeylinesUn[i].startPointX,mCurrentFrame.mvKeylinesUn[i].startPointY,mCurrentFrame.mvDepth_line_start[i],
+//                            mCurrentFrame.mvKeylinesUn[i].endPointX,mCurrentFrame.mvKeylinesUn[i].endPointY,mCurrentFrame.mvDepth_line_end[i];
+                MapLine* pNewML = new MapLine(worldPos,pKF,mpMap);
+
+                //表示该KeyFrame的哪个特征线可以观察到3d线
+                pKF->AddMapLine(pNewML,i);
+                //a.表示该MapLine可以被哪个KeyFrame观测到，以及对应的第几个特征线
+                pNewML->AddObservation(pKF,i);
+                //b.MapPoint中是选取区分度最高的描述子，pl-slam直接采用前一帧的描述子,这里先按照ORB-SLAM的过程来  ???
+                pNewML->ComputeDistinctiveDescriptors();
+                //c.更新该MapLine的平均观测方向以及观测距离的范围
+                pNewML->UpdateAverageDir();
+
+                // Fill Current Frame structure
+                mCurrentFrame.mvpMapLines[i] = pNewML;
+                mCurrentFrame.mvbLineOutlier[i] = false;
+
+                // Add to Map
+                mpMap->AddMapLine(pNewML);
+            }
+        }
     }
 
     mpLocalMapper->InsertKeyFrame(pKF);
@@ -1585,8 +1619,10 @@ void Tracking::UpdateLocalKeyFrames()
     }
 }
 
+// pnp只被用为重定位
 bool Tracking::Relocalization()
 {
+    cout<< "重定位" << endl;
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
 
