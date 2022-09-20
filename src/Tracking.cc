@@ -312,6 +312,9 @@ void Tracking::Track()
     }
     else
     {
+        /// 提取特征
+        mCurrentFrame.ExtractFeature(mImGray,imDepth);
+
         // System is initialized. Track Frame.
         bool bOK;
 
