@@ -219,7 +219,7 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp)
 {
     mImGray = imRGB;
-    cv::Mat imDepth = imD;
+    imDepth = imD;
 
     if(mImGray.channels()==3)
     {
@@ -244,6 +244,10 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
         imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
     /// 构建Frame
     mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+
+    // 更新参考关键帧
+    if (mpLastKeyFrame)
+        mCurrentFrame.mpReferenceKF = mpLastKeyFrame;
 
     Track();
 
@@ -295,6 +299,9 @@ void Tracking::Track()
 
     if(mState==NOT_INITIALIZED)
     {
+        /// 提取特征
+        mCurrentFrame.ExtractFeature(mImGray,imDepth);
+
         if(mSensor==System::STEREO || mSensor==System::RGBD)
             StereoInitialization();
         else

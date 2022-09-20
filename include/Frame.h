@@ -64,6 +64,9 @@ public:
     // Extract ORB on the image. 0 for left image and 1 for right image.
     void ExtractORB(int flag, const cv::Mat &im);
 
+    // 提取特征
+    void ExtractFeature(const cv::Mat &imGray, const cv::Mat &imDepth);
+
     // LSD点特征提取，添加
     void ExtractLSD(const cv::Mat &im, const cv::Mat &depth);
 

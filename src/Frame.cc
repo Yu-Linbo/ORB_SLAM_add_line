@@ -121,7 +121,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-// RGBD Frame 构造函数
+// RGBD Frame 构造函数,不提取特征
 Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
@@ -129,15 +129,36 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     // Frame ID
     mnId=nNextId++;
 
+
     // Scale Level Info, 特征提取相关参数
     mnScaleLevels = mpORBextractorLeft->GetLevels();
-    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();    
+    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
     mfLogScaleFactor = log(mfScaleFactor);
     mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
     mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
     mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
+    // This is done only for the first Frame (or after a change in the calibration)
+    if(mbInitialComputations)
+    {
+        ComputeImageBounds(imGray);
+
+        mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
+        mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
+
+        fx = K.at<float>(0,0);
+        fy = K.at<float>(1,1);
+        cx = K.at<float>(0,2);
+        cy = K.at<float>(1,2);
+        invfx = 1.0f/fx;
+        invfy = 1.0f/fy;
+
+        mbInitialComputations=false;
+    }
+
+    mb = mbf/fx;
+/*
     // 同时对两种特征进行提取
     // ORB extraction
     // ExtractORB(0,imGray);
@@ -191,6 +212,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
     // 将特征点分配到图像网格中
     AssignFeaturesToGrid();
+*/
 }
 
 
@@ -274,6 +296,45 @@ void Frame::ExtractORB(int flag, const cv::Mat &im)
     else
         (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight);
 }
+
+// 特征提取，添加
+void Frame::ExtractFeature(const cv::Mat &imGray, const cv::Mat &imDepth)
+{
+    // 同时对两种特征进行提取
+    // ORB extraction
+    // ExtractORB(0,imGray);
+    thread threadPoint(&Frame::ExtractORB, this, 0, imGray);
+    thread threadLine(&Frame::ExtractLSD, this, imGray,imDepth);
+    threadPoint.join();
+    threadLine.join();
+
+    NL = mvKeylinesUn.size(); //线特征的数量
+//    cout << "NL: " << NL << endl;
+        N = mvKeys.size();      // 点特征的数量
+
+        // 仅对点特征进行判断
+        if(mvKeys.empty())
+            return;
+
+        // 之前已经修正
+        //UndistortKeyPoints();
+        // 此时
+        mvKeysUn = mvKeys;
+
+        ComputeStereoFromRGBD_line(imDepth);
+        Select_lines(); // 筛选线特征
+        ComputeStereoFromRGBD(imDepth);
+
+        mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+        mvbOutlier = vector<bool>(N,false);
+
+        mvpMapLines = vector<MapLine*>(NL,static_cast<MapLine*>(NULL)); // 初始化N个为NULL的MapLine
+        mvbLineOutlier = vector<bool>(NL,false);    // 设置每个特征线都不是外线
+
+        // 将特征点分配到图像网格中
+        AssignFeaturesToGrid();
+}
+
 
 // 线特征提取，获取深度信息用与线提取，添加
 void Frame::ExtractLSD(const cv::Mat &im, const cv::Mat &depth)

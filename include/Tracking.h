@@ -100,6 +100,7 @@ public:
     // Current Frame
     Frame mCurrentFrame;
     cv::Mat mImGray;
+    cv::Mat imDepth;    //深度图
 
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;
