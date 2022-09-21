@@ -322,7 +322,7 @@ void Frame::ExtractFeature(const cv::Mat &imGray, const cv::Mat &imDepth)
         mvKeysUn = mvKeys;
 
         ComputeStereoFromRGBD_line(imDepth);
-        Select_lines(); // 筛选线特征
+        // Select_lines(); // 筛选线特征
         ComputeStereoFromRGBD(imDepth);
 
         mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));

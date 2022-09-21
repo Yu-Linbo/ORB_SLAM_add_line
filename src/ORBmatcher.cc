@@ -137,6 +137,7 @@ float ORBmatcher::RadiusByViewingCos(const float &viewCos)
 }
 
 
+
 bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoint &kp2,const cv::Mat &F12,const KeyFrame* pKF2)
 {
     // Epipolar line in second image l = x1'F12 = [a b c]
@@ -155,6 +156,13 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoin
 
     return dsqr<3.84*pKF2->mvLevelSigma2[kp2.octave];
 }
+
+int ORBmatcher::PointLk(cv::Mat mImGray,cv::Mat last_ImGray,cv::Mat imDepth,cv::Mat last_imDepth,Frame * mCurrentFrame, Frame * mLastFrame)
+    {
+        int nmatches=0;
+
+        return nmatches;
+    }
 
 int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPointMatches)
 {

@@ -299,6 +299,10 @@ void Tracking::Track()
 
     if(mState==NOT_INITIALIZED)
     {
+        // 更新上一帧彩色图与深度图
+        last_ImGray =mImGray;
+        last_imDepth =imDepth;    //深度图
+
         /// 提取特征
         mCurrentFrame.ExtractFeature(mImGray,imDepth);
 
@@ -312,9 +316,6 @@ void Tracking::Track()
     }
     else
     {
-        /// 提取特征
-        mCurrentFrame.ExtractFeature(mImGray,imDepth);
-
         // System is initialized. Track Frame.
         bool bOK;
 
@@ -332,17 +333,26 @@ void Tracking::Track()
 
                 if(mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
+                    /// 提取特征
+                    mCurrentFrame.ExtractFeature(mImGray,imDepth);
+
                     bOK = TrackReferenceKeyFrame();
                 }
                 else
                 {
-                    bOK = TrackWithMotionModel();
+                    bOK = TrackWithLK();
                     if(!bOK)
+                    {
+                        /// 提取特征
+                        mCurrentFrame.ExtractFeature(mImGray,imDepth);
                         bOK = TrackReferenceKeyFrame();
+                    }
                 }
             }
             else
             {
+                /// 提取特征
+                mCurrentFrame.ExtractFeature(mImGray,imDepth);
                 bOK = Relocalization();
             }
         }
@@ -421,6 +431,7 @@ void Tracking::Track()
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
 
         // If we have an initial estimation of the camera pose and matching. Track the local map.
+        // 提高精度？
         if(!mbOnlyTracking)
         {
             if(bOK)
@@ -445,6 +456,7 @@ void Tracking::Track()
         mpFrameDrawer->Update(this);
 
         // If tracking were good, check if we insert a keyframe
+        // 修改，添加线特征进行判断
         if(bOK)
         {
             // Update motion model
@@ -529,6 +541,10 @@ void Tracking::Track()
         mlFrameTimes.push_back(mlFrameTimes.back());
         mlbLost.push_back(mState==LOST);
     }
+
+    // 更新上一帧彩色图与深度图
+    last_ImGray =mImGray;
+    last_imDepth =imDepth;    //深度图
 
 }
 
@@ -975,30 +991,87 @@ void Tracking::UpdateLastFrame()
     }
 }
 
-/// 可修改为IMU，待修改
 bool Tracking::TrackWithMotionModel()
+    {
+        ORBmatcher matcher(0.9,true);
+        // LSD 匹配器
+        LSDmatcher lmatcher;
+
+        // Update last frame pose according to its reference keyframe
+        // Create "visual odometry" points if in Localization Mode
+        UpdateLastFrame();
+
+        mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
+
+        fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+
+        // Project points seen in previous frame
+        int th;
+        if(mSensor!=System::STEREO)
+            th=15;
+        else
+            th=7;
+        int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
+        // 线匹配
+        int lmatches = lmatcher.SearchByProjection(mCurrentFrame, mLastFrame);
+
+        // 线特征成功匹配比例
+        double lmatch_ratio = lmatches*1.0/mCurrentFrame.mvKeylinesUn.size();
+
+        // If few matches, uses a wider window search
+        if(nmatches<20)
+        {
+            fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+            nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
+        }
+
+        // 点匹配、线匹配少，跟踪失败
+        if(nmatches<20 && lmatch_ratio<0.5)
+            return false;
+
+        // Optimize frame pose with all matches
+        Optimizer::PoseOptimization(&mCurrentFrame);
+
+        // Discard outliers
+        int nmatchesMap = 0;
+        for(int i =0; i<mCurrentFrame.N; i++)
+        {
+            if(mCurrentFrame.mvpMapPoints[i])
+            {
+                if(mCurrentFrame.mvbOutlier[i])
+                {
+                    MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+
+                    mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
+                    mCurrentFrame.mvbOutlier[i]=false;
+                    pMP->mbTrackInView = false;
+                    pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                    nmatches--;
+                }
+                else if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
+                    nmatchesMap++;
+            }
+        }
+
+        if(mbOnlyTracking)
+        {
+            mbVO = nmatchesMap<10;
+            return nmatches>20;
+        }
+
+        return nmatchesMap>=10;
+    }
+
+/// 可修改为IMU，待修改
+bool Tracking::TrackWithLK()
 {
     ORBmatcher matcher(0.9,true);
     // LSD 匹配器
     LSDmatcher lmatcher;
 
-    // Update last frame pose according to its reference keyframe
-    // Create "visual odometry" points if in Localization Mode
-    UpdateLastFrame();
-
-    mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
-
-    fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-
-    // Project points seen in previous frame
-    int th;
-    if(mSensor!=System::STEREO)
-        th=15;
-    else
-        th=7;
-    int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
+    int nmatches = matcher.PointLk(mImGray,last_ImGray,imDepth,last_imDepth,&mCurrentFrame, &mLastFrame);
     // 线匹配
-    int lmatches = lmatcher.SearchByProjection(mCurrentFrame, mLastFrame);
+    int lmatches = lmatcher.LineLk(mImGray,last_ImGray,imDepth,last_imDepth,&mCurrentFrame, &mLastFrame);
 
     // 线特征成功匹配比例
     double lmatch_ratio = lmatches*1.0/mCurrentFrame.mvKeylinesUn.size();
@@ -1007,7 +1080,7 @@ bool Tracking::TrackWithMotionModel()
     if(nmatches<20)
     {
         fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-        nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
+        // nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
     }
 
     // 点匹配、线匹配少，跟踪失败

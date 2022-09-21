@@ -21,6 +21,9 @@ namespace ORB_SLAM2
     public:
         LSDmatcher(float nnratio=0.6, bool checkOri=true);
 
+        // LK光流跟踪
+        int LineLk(cv::Mat mImGray,cv::Mat last_ImGray,cv::Mat imDepth,cv::Mat last_imDepth,Frame * CurrentFrame, Frame * LastFrame);
+
         // 通过投影线段，对上一帧的特征线进行跟踪
         int SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame);
 

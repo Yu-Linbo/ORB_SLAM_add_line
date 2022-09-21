@@ -15,6 +15,13 @@ namespace ORB_SLAM2
     {
     }
 
+    int LSDmatcher::LineLk(cv::Mat mImGray,cv::Mat last_ImGray,cv::Mat imDepth,cv::Mat last_imDepth,Frame * mCurrentFrame, Frame * mLastFrame)
+    {
+        int nmatches=0;
+
+        return nmatches;
+    }
+
     int LSDmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame)
     {
         // 匹配特征线的数量，最终要返回该值
