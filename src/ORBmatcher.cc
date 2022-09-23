@@ -160,6 +160,29 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoin
 int ORBmatcher::PointLk(cv::Mat mImGray,cv::Mat last_ImGray,cv::Mat imDepth,cv::Mat last_imDepth,Frame * mCurrentFrame, Frame * mLastFrame)
     {
         int nmatches=0;
+        std::vector<cv::Point2f> n_pts_1, n_pts_2, match_pts_1, match_pts_2, ran_pts_1, ran_pts_2;
+        std::vector<KeyPoint> keypoints_1, keypoints_2;
+        std::vector<uchar> status;
+        std::vector<float> err;
+
+        keypoints_1 = mLastFrame->mvKeysUn;
+        KeyPoint::convert(mLastFrame->mvKeysUn, n_pts_1);
+
+        // LK 光流法
+        cv::calcOpticalFlowPyrLK( last_ImGray, mImGray, n_pts_1,  n_pts_2, status, err);
+
+        for (int i = 0; i < int(n_pts_1.size()); i++) {
+            if (status[i]) {
+                mCurrentFrame->mvpMapPoints.push_back(mLastFrame->mvpMapPoints[i]);
+            }
+        }
+
+        for (int i = 0; i < int(n_pts_1.size()); i++) {
+            if (status[i]) {
+                match_pts_2.push_back(n_pts_1.at(i));
+            }
+        }
+        KeyPoint::convert(match_pts_2,mCurrentFrame->mvKeysUn);
 
         return nmatches;
     }
