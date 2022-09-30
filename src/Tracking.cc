@@ -340,6 +340,7 @@ void Tracking::Track()
                 }
                 else
                 {
+
                     bOK = TrackWithLK();
                     if(!bOK)
                     {
@@ -833,6 +834,7 @@ void Tracking::CheckReplacedInLastFrame()
             }
         }
     }
+
     // 线特征
     for(int i=0; i<mLastFrame.NL; i++)
     {
@@ -1068,20 +1070,13 @@ bool Tracking::TrackWithLK()
     ORBmatcher matcher(0.9,true);
     // LSD 匹配器
     LSDmatcher lmatcher;
-
+    // 点匹配
     int nmatches = matcher.PointLk(mImGray,last_ImGray,imDepth,last_imDepth,&mCurrentFrame, &mLastFrame);
     // 线匹配
     int lmatches = lmatcher.LineLk(mImGray,last_ImGray,imDepth,last_imDepth,&mCurrentFrame, &mLastFrame);
 
     // 线特征成功匹配比例
-    double lmatch_ratio = lmatches*1.0/mCurrentFrame.mvKeylinesUn.size();
-
-    // If few matches, uses a wider window search
-    if(nmatches<20)
-    {
-        fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-        // nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
-    }
+    double lmatch_ratio = lmatches*1.0/mLastFrame.mvKeylinesUn.size();
 
     // 点匹配、线匹配少，跟踪失败
     if(nmatches<20 && lmatch_ratio<0.5)
@@ -1109,7 +1104,7 @@ bool Tracking::TrackWithLK()
             else if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
                 nmatchesMap++;
         }
-    }    
+    }
 
     if(mbOnlyTracking)
     {
