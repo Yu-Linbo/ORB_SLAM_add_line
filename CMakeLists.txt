@@ -28,7 +28,7 @@ endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-find_package(OpenCV 3 REQUIRED  PATHS /usr/local/cv34 )
+find_package(OpenCV 3 REQUIRED  PATHS /usr/local/cv32 )
 if(NOT OpenCV_FOUND)
    find_package(OpenCV 2.4.3 QUIET)
    if(NOT OpenCV_FOUND)
@@ -72,7 +72,8 @@ src/KeyFrameDatabase.cc
 src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
-        src/LKOdometer.cpp include/LKOdometer.h experiment/test.cpp)
+src/LKOdometer.cpp
+)
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
@@ -120,3 +121,6 @@ target_link_libraries(test ${PROJECT_NAME})
 
 #add_executable(line_test experiment/line_test.cpp)
 #target_link_libraries(line_test ${PROJECT_NAME})
+
+add_executable(test_match experiment/test_match.cpp)
+target_link_libraries(test_match ${PROJECT_NAME})

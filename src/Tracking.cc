@@ -46,7 +46,7 @@ namespace ORB_SLAM2
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
-    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
+    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0),lastframeiskeyframe(0)
 {
     // Load camera parameters from settings file
 
@@ -329,7 +329,9 @@ void Tracking::Track()
             {
                 // Local Mapping might have changed some MapPoints tracked in last frame
                 // 检查并更新上一帧被替换的MapPoints, 修改添加MapLines
-                CheckReplacedInLastFrame();
+                // 判断是否关键帧
+                if(lastframeiskeyframe)
+                    CheckReplacedInLastFrame();
 
                 if(mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
@@ -340,7 +342,7 @@ void Tracking::Track()
                 }
                 else
                 {
-
+                    /// 光流跟踪
                     bOK = TrackWithLK();
                     if(!bOK)
                     {
@@ -543,10 +545,9 @@ void Tracking::Track()
         mlbLost.push_back(mState==LOST);
     }
 
-    // 更新上一帧彩色图与深度图
+    // 如果是关键帧，更新上一帧彩色图与深度图
     last_ImGray =mImGray;
     last_imDepth =imDepth;    //深度图
-
 }
 
 /// 初始化
@@ -576,6 +577,7 @@ void Tracking::StereoInitialization()
                 pKFini->AddMapPoint(pNewMP,i);
                 // 一个地图点会被多个帧观察到，相应会有多个描述子，计算最优的描述子(RGBD 初始化时，似乎没必要)
                 pNewMP->ComputeDistinctiveDescriptors();
+                // 更新该MapPoint平均观测方向以及观测距离的范围
                 pNewMP->UpdateNormalAndDepth();
                 mpMap->AddMapPoint(pNewMP);
 
@@ -601,7 +603,7 @@ void Tracking::StereoInitialization()
 
                 //a.表示该MapLine可以被哪个KeyFrame观测到，以及对应的第几个特征线
                 pNewML->AddObservation(pKFini,i);
-                //b.MapPoint中是选取区分度最高的描述子，pl-slam直接采用前一帧的描述子,这里先按照ORB-SLAM的过程来  ???
+                //b.MapPoint中是选取区分度最高的描述子，pl-slam直接采用前一帧的描述子,这里先按照ORB-SLAM的过程来
                 pNewML->ComputeDistinctiveDescriptors();
                 //c.更新该MapLine的平均观测方向以及观测距离的范围
                 pNewML->UpdateAverageDir();
@@ -851,6 +853,7 @@ void Tracking::CheckReplacedInLastFrame()
     }
 }
 
+
 /// 修改Epnp,加入线特征，待添加 (几乎只有初始两帧用到了)
 bool Tracking::TrackReferenceKeyFrame()
 {
@@ -1064,7 +1067,7 @@ bool Tracking::TrackWithMotionModel()
         return nmatchesMap>=10;
     }
 
-/// 可修改为IMU，待修改
+/// 可加入imu,未修改
 bool Tracking::TrackWithLK()
 {
     ORBmatcher matcher(0.9,true);
@@ -1075,12 +1078,16 @@ bool Tracking::TrackWithLK()
     // 线匹配
     int lmatches = lmatcher.LineLk(mImGray,last_ImGray,imDepth,last_imDepth,&mCurrentFrame, &mLastFrame);
 
-    // 线特征成功匹配比例
-    double lmatch_ratio = lmatches*1.0/mLastFrame.mvKeylinesUn.size();
+    cout<< "TrackWithLK " << " Point match: " << nmatches << " Line match: " << lmatches <<endl;
 
     // 点匹配、线匹配少，跟踪失败
-    if(nmatches<20 && lmatch_ratio<0.5)
+    if(nmatches<20 && lmatches<5)
         return false;
+
+    // 根据Const Velocity Model(认为这两帧之间的相对运动和之前两帧间相对运动相同)估计当前帧的位姿
+    // mVelocity为最近一次前后帧位姿之差
+    mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
+
 
     // Optimize frame pose with all matches
     Optimizer::PoseOptimization(&mCurrentFrame);

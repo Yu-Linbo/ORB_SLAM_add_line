@@ -36,7 +36,7 @@ void timeCost(const std::chrono::time_point<std::chrono::system_clock>,
 int main() {
     std::chrono::time_point<std::chrono::system_clock> start, end1, end2;
     start = std::chrono::system_clock::now();
-    std::string first_img_path = "/home/zlkj/my_paper_code/ORB_SLAM_add_line/experiment/1.png", second_img_path = "/home/zlkj/my_paper_code/ORB_SLAM_add_line/experiment/2.png";
+    std::string first_img_path = "/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/1.png", second_img_path = "/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/2.png";
     cv::Mat img1, img2, img1_, img2_, match, ransac;
     int MAX_CNT = 500;
     double MIN_DIST = 10;
@@ -102,31 +102,31 @@ int main() {
     end1 = std::chrono::system_clock::now();
     timeCost(start, end2, end1, "ransac");
 
-//    printf("提取得到的特征点个数为： %zu \n", n_pts_1.size());
-//    for (int i = 0; i < n_pts_1.size(); i++) {
-//        cv::circle(img1_, n_pts_1[i], 1, cv::Scalar(0, 0, 255), 2, 8, 0);
-//    }
-//    cv::imshow("提取到的特征点", img1_);
-//    cv::imwrite("/home/zlkj/my_paper_code/ORB_SLAM_add_line-master/experiment/my1.png",img1_);
-//    cv::waitKey(0);
-//
-//    printf("跟踪得到的特征点个数为： %zu  \n", n_pts_2.size());
-//    for (int i = 0; i < n_pts_2.size(); i++) {
-//        cv::circle(img2_, n_pts_2[i], 1, cv::Scalar(0, 0, 255), 2, 8, 0);
-//    }
-//    cv::imshow("追踪到的特征点", img2_);
-//    cv::imwrite("/home/zlkj/my_paper_code/ORB_SLAM_add_line-master/experiment/my2.png",img2_);
-//    cv::waitKey(0);
-//
-//    printf("匹配得到的特征点个数为： %zu  \n", match_pts_1.size());
-//    cv::imshow("匹配结果", match);
-//    cv::imwrite("/home/zlkj/my_paper_code/ORB_SLAM_add_line-master/experiment/my3.png",match);
-//    cv::waitKey(0);
-//
-//    printf("RANSAC之后的特征点个数为： %zu  \n", ran_pts_1.size());
-//    cv::imshow("匹配结果", ransac);
-//    cv::imwrite("/home/zlkj/my_paper_code/ORB_SLAM_add_line-master/experiment/my4.png",ransac);
-//    cv::waitKey(0);
+    printf("提取得到的特征点个数为： %zu \n", n_pts_1.size());
+    for (int i = 0; i < n_pts_1.size(); i++) {
+        cv::circle(img1_, n_pts_1[i], 1, cv::Scalar(0, 0, 255), 2, 8, 0);
+    }
+    cv::imshow("提取到的特征点", img1_);
+    cv::imwrite("/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/my1.png",img1_);
+    cv::waitKey(0);
+
+    printf("跟踪得到的特征点个数为： %zu  \n", n_pts_2.size());
+    for (int i = 0; i < n_pts_2.size(); i++) {
+        cv::circle(img2_, n_pts_2[i], 1, cv::Scalar(0, 0, 255), 2, 8, 0);
+    }
+    cv::imshow("追踪到的特征点", img2_);
+    cv::imwrite("/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/my2.png",img2_);
+    cv::waitKey(0);
+
+    printf("匹配得到的特征点个数为： %zu  \n", match_pts_1.size());
+    cv::imshow("匹配结果", match);
+    cv::imwrite("/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/my3.png",match);
+    cv::waitKey(0);
+
+    printf("RANSAC之后的特征点个数为： %zu  \n", ran_pts_1.size());
+    cv::imshow("匹配结果", ransac);
+    cv::imwrite("/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/my4.png",ransac);
+    cv::waitKey(0);
 
     std::vector<cv::Point2f> start_line, end_line, match_start_line, match_end_line, ran_start_line, ran_end_line;
     std::vector<cv::Point2f> start_line_2, end_line_2, match_start_line_2, match_end_line_2, ran_start_line_2, ran_end_line_2;
@@ -166,12 +166,12 @@ int main() {
         cv::line(img1_, keylines1[i].getStartPoint(),keylines1[i].getEndPoint(), (0, 0, 255), 2, 8, 0);
     }
     cv::imshow("提取到的特征line", img1_);
-    cv::imwrite("/home/zlkj/my_paper_code/ORB_SLAM_add_line-master/experiment/my1_line.png",img1_);
+    cv::imwrite("/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/my1_line.png",img1_);
     cv::waitKey(0);
 
     printf("匹配得到的特征line个数为： %zu  \n", match_start_line.size());
     cv::imshow("匹配结果", match_line);
-    cv::imwrite("/home/zlkj/my_paper_code/ORB_SLAM_add_line-master/experiment/my3_line.png",match_line);
+    cv::imwrite("/home/ylb/my_paper_code/ORB_SLAM_add_line/experiment/my3_line.png",match_line);
     cv::waitKey(0);
 
     return 0;

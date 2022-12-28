@@ -17,7 +17,7 @@ namespace ORB_SLAM2
 
     int LSDmatcher::LineLk(cv::Mat mImGray,cv::Mat last_ImGray,cv::Mat imDepth,cv::Mat last_imDepth,Frame * mCurrentFrame, Frame * mLastFrame)
     {
-        int nmatches=0;
+        int nmatches=100;
 
         return nmatches;
     }

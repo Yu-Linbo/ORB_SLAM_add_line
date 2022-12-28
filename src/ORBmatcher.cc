@@ -165,24 +165,22 @@ int ORBmatcher::PointLk(cv::Mat mImGray,cv::Mat last_ImGray,cv::Mat imDepth,cv::
         std::vector<uchar> status;
         std::vector<float> err;
 
-        keypoints_1 = mLastFrame->mvKeysUn;
+        // 关键帧特征点获取
         KeyPoint::convert(mLastFrame->mvKeysUn, n_pts_1);
 
         // LK 光流法
         cv::calcOpticalFlowPyrLK( last_ImGray, mImGray, n_pts_1,  n_pts_2, status, err);
 
-        for (int i = 0; i < int(n_pts_1.size()); i++) {
-            if (status[i]) {
-                mCurrentFrame->mvpMapPoints.push_back(mLastFrame->mvpMapPoints[i]);
-            }
-        }
+        //
+        KeyPoint::convert(match_pts_2,mCurrentFrame->mvKeysUn);
 
         for (int i = 0; i < int(n_pts_1.size()); i++) {
             if (status[i]) {
-                match_pts_2.push_back(n_pts_1.at(i));
+                mCurrentFrame->mvpMapPoints.push_back(mLastFrame->mvpMapPoints[i]);
+                mCurrentFrame->mvKeysUn.push_back(KeyPoint(n_pts_2.at(i), 1.f));
+                nmatches++;
             }
         }
-        KeyPoint::convert(match_pts_2,mCurrentFrame->mvKeysUn);
 
         return nmatches;
     }
